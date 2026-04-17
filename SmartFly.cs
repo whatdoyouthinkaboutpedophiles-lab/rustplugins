@@ -31,7 +31,7 @@ namespace Oxide.Plugins
 
                 if (activeItem != null && (activeItem.info.shortname == "hammer" || activeItem.info.shortname == "building.planner"))
                 {
-                    player.SendConsoleCommand("noclip");
+                    player.SendConsoleCommand("nocliptoggle");
                     
                     return false; 
                 }
