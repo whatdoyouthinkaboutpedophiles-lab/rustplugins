@@ -141,7 +141,7 @@ namespace Oxide.Plugins
 
             if (!player.IsAdmin && !permission.UserHasPermission(player.UserIDString, PermUse)) return;
 
-            string action = arg.Args[0];
+            string action = (string)arg.Args[0];
 
             CloseMenu(player);
 

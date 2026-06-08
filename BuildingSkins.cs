@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 
 namespace Oxide.Plugins
 {
-    [Info("Building Skins", "Marat", "2.0.10")]
+    [Info("Building Skins", "Marat", "2.0.11")]
     [Description("Automatic application of DLC skins for building blocks")]
     class BuildingSkins : RustPlugin
     {
@@ -167,68 +167,35 @@ namespace Oxide.Plugins
 
         private object OnStructureUpgrade(BuildingBlock block, BasePlayer player, BuildingGrade.Enum grade, ulong skin)
         {
-            if (player == null) { return null; }
-            if (block == null) { return null; }
-
-            if (!permission.UserHasPermission(player.UserIDString, permissionUse))
-            {
-                return null;
-            }
-
-            if (skin != 0 && player.blueprints.steamInventory.HasItem((int)skin))
-            {
-                return null;
-            }
-
-            if (!gradesSkin.TryGetValue(grade, out var skinId) || skinId == null)
-            {
-                return null;
-            }
-
-            var targetSkinID = GetPlayerSkinID(player, grade);
-
+            if (player == null || block == null) return null;
+            if (!permission.UserHasPermission(player.UserIDString, permissionUse)) return null;
+            if (skin != 0 && player.blueprints.steamInventory.HasItem((int)skin)) return null;
+            if (!gradesSkin.TryGetValue(grade, out var skinId) || skinId == null) return null;
+            var skinID = GetPlayerSkinID(player, grade);
             var playerData = storedData.PlayerData[player.userID];
-
             if (block.SecondsSinceAttacked <= 30f)
             {
                 block.OnRepairFailed(player, string.Format("Unable to repair: Recently damaged. Repairable in: {0:N0}s.", 30f - block.SecondsSinceAttacked));
                 return false;
             }
-
-            if (block.skinID == targetSkinID && block.grade == grade)
-            {
-
-                return false;
-            }
+            if (block.skinID != 0 && grade.ToString() == "Metal" && !playerData.RandomColor) block.SetCustomColour((uint)player.GetInfoInt("client.SelectedShippingContainerBlockColour", 0));
+            if (block.skinID == skinID && block.grade == grade) return false;
             NextTick(() =>
             {
-                if (block == null || block.IsDestroyed) 
-                { 
-                    return; 
-                }
-            
-                block.skinID = targetSkinID;
-                block.ChangeGradeAndSkin(block.grade, targetSkinID, true, true);
-                
-                //if (playerData.EnableAnimation) block.ClientRPC(null, "DoUpgradeEffect", (int)block.grade, targetSkinID);
-                
-                if (block.skinID != 0 && grade.ToString() == "Metal" && !playerData.RandomColor) 
-                    block.SetCustomColour((uint)player.GetInfoInt("client.SelectedShippingContainerBlockColour", 0));
+                if (block == null || block.IsDestroyed) return;
+                block.skinID = skinID;
+                block.ChangeGradeAndSkin(block.grade, skinID, true, true);
+                if (playerData.EnableAnimation) block.ClientRPC(null, "DoUpgradeEffect", (int)block.grade, skinID);
+                ///for plugin BuildingGrades
+                if (block.skinID != 0 && grade.ToString() == "Metal" && !playerData.RandomColor) block.SetCustomColour((uint)player.GetInfoInt("client.SelectedShippingContainerBlockColour", 0));
             });
-
             return null;
         }
 
         ///for plugin BuildingGrades
         private void OnStructureGradeUpdated(BuildingBlock block, BasePlayer player, BuildingGrade.Enum oldGrade, BuildingGrade.Enum newGrade)
         {
-            if (player == null && block != null && block.OwnerID != 0)
-            {
-                player = BasePlayer.FindByID(block.OwnerID);
-    
-            }
-
-            OnStructureUpgrade(block, player, newGrade, block != null ? block.skinID : 0);
+            OnStructureUpgrade(block, player, newGrade, block.skinID);
         }
 
         private void OnLootEntity(BasePlayer player, BaseEntity entity)
@@ -288,8 +255,10 @@ namespace Oxide.Plugins
                         new("Stone", "https://i.ibb.co/jw9FJFP/stone.png", 0),
                         new("Adobe", "https://i.ibb.co/Ky1MBJ7/adobe.png", 10220),
                         new("Brick", "https://i.ibb.co/vjqh3Hj/brick.png", 10223),
-                        new("Brutalist", "https://i.ibb.co/86bpvS2/brutalist.png", 10225)
-                    },
+                        new("Brutalist", "https://i.ibb.co/86bpvS2/brutalist.png", 10225),
+                        new("Jungle", "https://i.postimg.cc/yNvGqhMm/jungle.png", 10326),
+                        new("Crypt", "https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Je4GXHfDY0jhyo8DEiv5ddOag3r7A_RPC3MjO4Ivg/512fx512f", 10472)
+                    },					
                     [2] = new List<BlockInfo>
                     {
                         new("Metal", "https://i.ibb.co/M9RPSZ2/metal.png", 0),
@@ -297,7 +266,8 @@ namespace Oxide.Plugins
                     },
                     [3] = new List<BlockInfo>
                     {
-                        new("TopTier", "https://i.ibb.co/T0Nwfvp/toptire.png", 0)
+                        new("TopTier", "https://i.ibb.co/T0Nwfvp/toptire.png", 0),
+                        new("Space", "https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Je4GHFfDY0jhyo8DEiv5dYMaA5qr0-Sf9WcXLchA/512fx512f", 10430)
                     }
                 },
                 Version = Version
@@ -369,7 +339,7 @@ namespace Oxide.Plugins
             SoundEffect(player, "assets/bundled/prefabs/fx/notice/loot.drag.grab.fx.prefab");
 
             int index, skinIndex;
-            switch (arg.Args[0].ToLower())
+            switch (arg.GetString(0).ToLower())
             {
                 case "open":
                     {
@@ -388,13 +358,13 @@ namespace Oxide.Plugins
                     }
                 case "change":
                     {
-                        if (!int.TryParse(arg.Args[1], out index) || !int.TryParse(arg.Args[2], out skinIndex)) return;
+                        if (!int.TryParse(arg.GetString(1), out index) || !int.TryParse(arg.GetString(2), out skinIndex)) return;
                         ImageLayers(player, index, skinIndex);
                         break;
                     }
                 case "choose":
                     {
-                        if (!int.TryParse(arg.Args[1], out index) || !int.TryParse(arg.Args[2], out skinIndex)) return;
+                        if (!int.TryParse(arg.GetString(1), out index) || !int.TryParse(arg.GetString(2), out skinIndex)) return;
                         var grades = gradesSkin.ElementAt(index);
                         playerData.GetType().GetField(grades.Key.ToString())?.SetValue(playerData, grades.Value[skinIndex]);
                         ImageLayers(player, index, skinIndex);
@@ -408,13 +378,13 @@ namespace Oxide.Plugins
                     }
                 case "colors":
                     {
-                        if (!int.TryParse(arg.Args[1], out index)) return;
+                        if (!int.TryParse(arg.GetString(1), out index)) return;
                         ColorLayer(player, index);
                         break;
                     }
                 case "setcolor":
                     {
-                        if (!int.TryParse(arg.Args[1], out index) || !uint.TryParse(arg.Args[2], out uint colorId)) return;
+                        if (!int.TryParse(arg.GetString(1), out index) || !uint.TryParse(arg.GetString(2), out uint colorId)) return;
                         player.SetInfo("client.SelectedShippingContainerBlockColour", colorId.ToString());
                         playerData.Color = colorId;
                         ColorLayer(player, index);
@@ -423,7 +393,7 @@ namespace Oxide.Plugins
                     }
                 case "randomcolor":
                     {
-                        if (!int.TryParse(arg.Args[1], out index)) return;
+                        if (!int.TryParse(arg.GetString(1), out index)) return;
                         var randomColor = !playerData.RandomColor;
                         playerData.RandomColor = randomColor;
                         player.SetInfo("client.SelectedShippingContainerBlockColour", randomColor ? "0" : playerData.Color.ToString());
